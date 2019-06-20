@@ -106,5 +106,13 @@
     <None Include="packages.config" />
     <None Include="text.vert" />
     <None Include="text.frag" />
+    <None Include="tessShader.tesc" />
+    <None Include="tessShader.tese" />
+    <None Include="tessShader.frag">
+      <Filter>Ressourcendateien</Filter>
+    </None>
+    <None Include="tessShader.vert">
+      <Filter>Ressourcendateien</Filter>
+    </None>
   </ItemGroup>
 </Project>

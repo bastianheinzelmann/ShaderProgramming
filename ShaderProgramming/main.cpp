@@ -264,15 +264,18 @@ int main()
 	Shader shader("shader.vert", "shader.frag");
 	shader.linkProgram();
 
+	Shader tessShader("tessShader.vert", "tessShader.frag", nullptr, "tessShader.tesc", "tessShader.tese");
+	tessShader.linkProgram();
+
+	Shader simpleDepthShader("depthShader.vert", "depthShader.frag");
+	simpleDepthShader.linkProgram();
+
+	Shader blurShader("blurShader.vert", "blurShader.frag");
+	blurShader.linkProgram();
+
 	// TRANSFORM SHADER PROGRAM
 	// ------------------------------------
 	Shader marchingCubesShader("marchingCubes.vert", "marchingCubes.frag", "marchingCubes.geom");
-
-	// THE TRANSFORM FEEDBACK		[/// DEACTIVATED ///]
-	// -----------------------------------------------------------------
-	//const char* feedbackVaryings[] = { "outValue" };
-	//glTransformFeedbackVaryings(testShader.ID, 1, feedbackVaryings, GL_INTERLEAVED_ATTRIBS);
-
 	marchingCubesShader.linkProgram();
 
 	// screen quad VAO
@@ -287,7 +290,111 @@ int main()
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
+#pragma region ShadowMapping
 
+	// plane VAO from the shadow stuff
+	unsigned int planeVBO;
+	glGenVertexArrays(1, &planeVAO);
+	glGenBuffers(1, &planeVBO);
+	glBindVertexArray(planeVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, planeVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(planeVertices), planeVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+	glBindVertexArray(0);
+
+	// load textures
+	// -------------
+	unsigned int woodTexture = loadTexture("wood.png");
+
+	// configure depth map FBO
+	// -----------------------
+	const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+
+	// create depth texture
+	unsigned int depthMap;
+	glGenTextures(1, &depthMap);
+	glBindTexture(GL_TEXTURE_2D, depthMap);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	float borderColor[] = { 1.0, 1.0, 1.0, 1.0 };
+	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+	// create another texture
+	unsigned int colorTexture;
+	glGenTextures(1, &colorTexture);
+	glBindTexture(GL_TEXTURE_2D, colorTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+	// create and attach depth texture as FBO's depth buffer
+	unsigned int depthMapFBO;
+	glGenFramebuffers(1, &depthMapFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTexture, 0);
+	//glDrawBuffer(GL_NONE);
+	//glReadBuffer(GL_NONE);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+		std::cout << "Framebuffer not complete!" << std::endl;
+
+	// we need another 2 frame buffers for good ol' gauss
+	unsigned int pingpongFBO[2];
+	unsigned int pingpongTextures[2];
+	glGenFramebuffers(2, pingpongFBO);
+	glGenTextures(2, pingpongTextures);
+
+	std::cout << "Ping: " << pingpongTextures[0] << " Pong: " << pingpongTextures[1] << std::endl;
+
+	for (unsigned int i = 0; i < 2; i++)
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[i]);
+		glBindTexture(GL_TEXTURE_2D, pingpongTextures[i]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); // we clamp to the edge as the blur filter would otherwise sample repeated texture values!
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pingpongTextures[i], 0);
+		// also check if framebuffers are complete (no need for depth buffer)
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+			std::cout << "Framebuffer not complete!" << std::endl;
+	}
+
+
+	// shader configuration
+	// --------------------
+	shader.use();
+	shader.setInt("diffuseTexture", 0);
+	shader.setInt("shadowMap", 1);
+
+	blurShader.use();
+	blurShader.setInt("image", 0);
+
+	// lighting info
+	// -------------
+	glm::vec3 lightPos(-2.0f, 4.0f, -1.0f);
+
+	int frames = 0;
+	int printFrame = 0;
+	double lastTime = glfwGetTime();
+
+	std::string ui = "Gauss Iterationen: ";
+
+	// shadow stuff end here
+#pragma endregion Well Shadow Mapping
 
 	// set the vertices for the marching cubes
 	//dummyFunction();
@@ -314,27 +421,12 @@ int main()
 	//glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, 0, 0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
 
-
-	// load and create a texture 
-
-	//int diffuseMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/alien_diffuse.jpg");
-	//int normalMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/alien_normal.jpg");
-	//int heightMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/alien_height.png");
-
 	int diffuseMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/bricks2.jpg");
 	int normalMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/bricks2_normal.jpg");
 	int heightMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/bricks2_disp.jpg");
 
 	int particleSprite = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/particle.png");
 	int particleSprite2 = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/surprised.png");
-
-	/*int diffuseMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/water_diffuse.jpg");
-	int normalMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/water_normal.png");
-	int heightMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/water_height.png");
-*/
-	//int diffuseMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/metal_diffuse.jpg");
-	//int normalMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/metal_normal.jpg");
-	//int heightMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/metal_height.png");
 
 	// -------------------------
 	marchingCubesShader.use();
@@ -597,6 +689,29 @@ int main()
 		textRenderer.RenderText(textShader, std::to_string(frameRate), 25.0f, 575.0f, 0.5f, glm::vec3(1.0f, 0.71f, 0.76f));
 		glDepthMask(GL_TRUE);
 		glDisable(GL_BLEND);
+
+
+		// well i dont know
+		tessShader.use();
+		tessShader.setMat4("projection", projection);
+		tessShader.setMat4("view", view);
+		// set light uniforms
+		tessShader.setVec3("viewPos", camera.Position);
+		tessShader.setVec3("lightPos", lightPos);
+		//shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, woodTexture);
+		glActiveTexture(GL_TEXTURE1);
+		//glBindTexture(GL_TEXTURE_2D, pingpongTextures[horizontal]);
+		//renderScene(shader);
+		model = glm::mat4(1.0f);
+		tessShader.setMat4("model", model);
+		glBindVertexArray(planeVAO);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDrawArrays(GL_PATCHES, 0, 6);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		
+		// end of weird stuff
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------

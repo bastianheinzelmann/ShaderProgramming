@@ -172,6 +172,10 @@
     <None Include="particles.frag" />
     <None Include="particles.geom" />
     <None Include="particles.vert" />
+    <None Include="tessShader.frag" />
+    <None Include="tessShader.tesc" />
+    <None Include="tessShader.tese" />
+    <None Include="tessShader.vert" />
     <None Include="text.frag" />
     <None Include="text.vert" />
     <None Include="vertex_shader.vs" />
