@@ -66,6 +66,9 @@ unsigned int bhVAO = 0, bhBuf = 0;
 
 // end particles 
 
+// tesselation
+bool wireframe = false;
+
 // scene for shadow mapping
 unsigned int planeVAO;
 
@@ -707,10 +710,16 @@ int main()
 		model = glm::mat4(1.0f);
 		tessShader.setMat4("model", model);
 		glBindVertexArray(planeVAO);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		glDrawArrays(GL_PATCHES, 0, 6);
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		
+		if (wireframe)
+		{
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			glDrawArrays(GL_PATCHES, 0, 6);
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		}
+		else
+		{
+			glDrawArrays(GL_PATCHES, 0, 6);
+		}
 		// end of weird stuff
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -744,6 +753,13 @@ void processInput(GLFWwindow *window)
 		scrollInput+= 4.0f;
 	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
 		scrollInput-= 4.0f;
+	if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS)
+	{
+		std::cout << "Wireframe is true" << std::endl;
+		wireframe = true;
+	}
+	if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS)
+		wireframe = false;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
