@@ -271,6 +271,10 @@ int main()
 	Shader tessShader("tessShader.vert", "tessShader.frag", nullptr, "tessShader.tesc", "tessShader.tese");
 	tessShader.linkProgram();
 
+	tessShader.use();
+	tessShader.setInt("diffuseTexture", 0);
+	tessShader.setInt("heightMap", 1);
+
 	Shader simpleDepthShader("depthShader.vert", "depthShader.frag");
 	simpleDepthShader.linkProgram();
 
@@ -695,6 +699,7 @@ int main()
 		glDisable(GL_BLEND);
 
 
+#pragma region Tesselation
 		// well i dont know
 		tessShader.use();
 		tessShader.setVec4("tessFactor", glm::vec4(tessFactor, 0, 0, 0));
@@ -703,27 +708,24 @@ int main()
 		// set light uniforms
 		tessShader.setVec3("viewPos", camera.Position);
 		tessShader.setVec3("lightPos", lightPos);
-		//shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, woodTexture);
 		glActiveTexture(GL_TEXTURE1);
-		//glBindTexture(GL_TEXTURE_2D, pingpongTextures[horizontal]);
+		glBindTexture(GL_TEXTURE_2D, heightMap);
 		model = glm::mat4(1.0f);
 		tessShader.setMat4("model", model);
 		glBindVertexArray(planeVAO);
 		if (wireframe)
 		{
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			//renderScene(tessShader);
 			glDrawArrays(GL_PATCHES, 0, 6);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
 		else
 		{
-			//renderScene(tessShader);
 			glDrawArrays(GL_PATCHES, 0, 6);
 		}
-		// end of weird stuff
+#pragma endregion Tesselation
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------

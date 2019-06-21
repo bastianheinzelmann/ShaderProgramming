@@ -2,7 +2,6 @@
 out vec4 FragColor;
 
 uniform sampler2D diffuseTexture;
-uniform sampler2D shadowMap;
 
 uniform vec3 lightPos;
 uniform vec3 viewPos;
