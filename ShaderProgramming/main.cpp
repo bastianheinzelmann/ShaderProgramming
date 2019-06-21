@@ -435,8 +435,11 @@ int main()
 
 	int particleSprite = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/particle.png");
 	int particleSprite2 = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/surprised.png");
-
 	// -------------------------
+
+	int tesselationHeightMap = loadTexture("water_height.png");
+	int tesselationDiffuse = loadTexture("water_diffuse.jpg");
+
 	marchingCubesShader.use();
 	marchingCubesShader.setInt("screenTexture", 0);
 	marchingCubesShader.setInt("diffuseMap", 1);
@@ -689,7 +692,7 @@ int main()
 		
 		glBindSampler(texture3D, 0);
 
-		//updateParticles(deltaTime);
+#pragma region Particles
 		glEnable(GL_BLEND);
 		glDepthMask(GL_FALSE);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -697,6 +700,7 @@ int main()
 		textRenderer.RenderText(textShader, std::to_string(frameRate), 25.0f, 575.0f, 0.5f, glm::vec3(1.0f, 0.71f, 0.76f));
 		glDepthMask(GL_TRUE);
 		glDisable(GL_BLEND);
+#pragma endregion Particles
 
 
 #pragma region Tesselation
@@ -709,9 +713,9 @@ int main()
 		tessShader.setVec3("viewPos", camera.Position);
 		tessShader.setVec3("lightPos", lightPos);
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, woodTexture);
+		glBindTexture(GL_TEXTURE_2D, tesselationDiffuse);
 		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, heightMap);
+		glBindTexture(GL_TEXTURE_2D, tesselationHeightMap);
 		model = glm::mat4(1.0f);
 		tessShader.setMat4("model", model);
 		glBindVertexArray(planeVAO);
