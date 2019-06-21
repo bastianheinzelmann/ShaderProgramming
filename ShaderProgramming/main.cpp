@@ -68,6 +68,7 @@ unsigned int bhVAO = 0, bhBuf = 0;
 
 // tesselation
 bool wireframe = false;
+unsigned int tessFactor = 1;
 
 // scene for shadow mapping
 unsigned int planeVAO;
@@ -696,6 +697,7 @@ int main()
 
 		// well i dont know
 		tessShader.use();
+		tessShader.setVec4("tessFactor", glm::vec4(tessFactor, 0, 0, 0));
 		tessShader.setMat4("projection", projection);
 		tessShader.setMat4("view", view);
 		// set light uniforms
@@ -706,18 +708,19 @@ int main()
 		glBindTexture(GL_TEXTURE_2D, woodTexture);
 		glActiveTexture(GL_TEXTURE1);
 		//glBindTexture(GL_TEXTURE_2D, pingpongTextures[horizontal]);
-		//renderScene(shader);
 		model = glm::mat4(1.0f);
 		tessShader.setMat4("model", model);
 		glBindVertexArray(planeVAO);
 		if (wireframe)
 		{
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			//renderScene(tessShader);
 			glDrawArrays(GL_PATCHES, 0, 6);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		}
 		else
 		{
+			//renderScene(tessShader);
 			glDrawArrays(GL_PATCHES, 0, 6);
 		}
 		// end of weird stuff
@@ -754,12 +757,18 @@ void processInput(GLFWwindow *window)
 	if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
 		scrollInput-= 4.0f;
 	if (glfwGetKey(window, GLFW_KEY_Y) == GLFW_PRESS)
-	{
-		std::cout << "Wireframe is true" << std::endl;
 		wireframe = true;
-	}
 	if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS)
 		wireframe = false;
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+	{
+		tessFactor += 1;
+	}
+	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+	{
+		if(tessFactor > 1)
+			tessFactor -= 1;
+	}
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
