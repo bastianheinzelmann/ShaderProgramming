@@ -46,6 +46,8 @@ glm::vec3 lightPos(5.0f, 10.0f, 3.0f);
 float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
 
+unsigned int amount = 10;
+
 int scrollInput = 0;
 
 
@@ -583,7 +585,10 @@ int main()
 	// render loop
 	// -----------
 
-	int frameRate;
+	frames = 0;
+	printFrame = 0;
+	lastTime = glfwGetTime();
+
 	while (!glfwWindowShouldClose(window))
 	{
 		// per-frame time logic
@@ -592,7 +597,14 @@ int main()
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 
-		frameRate = 1 / deltaTime;
+		++frames;
+
+		if (currentFrame - lastTime >= 1.0)
+		{
+			printFrame = frames;
+			frames = 0;
+			lastTime += 1.0;
+		}
 
 		// input
 		// -----
@@ -692,16 +704,6 @@ int main()
 		
 		glBindSampler(texture3D, 0);
 
-#pragma region Particles
-		glEnable(GL_BLEND);
-		glDepthMask(GL_FALSE);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		renderParticles(computeShader, particleShader, view, model, projection, particleSprite2, camera.Position);
-		textRenderer.RenderText(textShader, std::to_string(frameRate), 25.0f, 575.0f, 0.5f, glm::vec3(1.0f, 0.71f, 0.76f));
-		glDepthMask(GL_TRUE);
-		glDisable(GL_BLEND);
-#pragma endregion Particles
-
 
 #pragma region Tesselation
 		// well i dont know
@@ -730,6 +732,19 @@ int main()
 			glDrawArrays(GL_PATCHES, 0, 6);
 		}
 #pragma endregion Tesselation
+
+		std::string printString = std::string("Gauss Iterationen: ").append(std::to_string(amount));
+
+#pragma region Particles
+		glEnable(GL_BLEND);
+		glDepthMask(GL_FALSE);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		renderParticles(computeShader, particleShader, view, model, projection, particleSprite2, camera.Position);
+		textRenderer.RenderText(textShader, std::to_string(printFrame), 20.0f, 675.0f, 0.5f, glm::vec3(1.0f, 0.71f, 0.76f));
+		textRenderer.RenderText(textShader, printString, 20.0f, 650.0f, 0.5f, glm::vec3(1.0f, 0.71f, 0.76f));
+		glDepthMask(GL_TRUE);
+		glDisable(GL_BLEND);
+#pragma endregion Particles
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
