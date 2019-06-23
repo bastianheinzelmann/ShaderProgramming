@@ -72,6 +72,12 @@ unsigned int bhVAO = 0, bhBuf = 0;
 bool wireframe = false;
 unsigned int tessFactor = 1;
 
+// render toggles
+bool renderPillar = false;
+bool renderShadows = false;
+bool renderPikachu = false;
+bool renderTesselation = false;
+
 // scene for shadow mapping
 unsigned int planeVAO;
 
@@ -610,141 +616,233 @@ int main()
 		// -----
 		processInput(window);
 
+		glm::mat4 projection;
+		glm::mat4 view;
+		glm::mat4 model;
 
-
-		// render
-		// ------
-		// bind to framebuffer and draw scene as we normally would to color texture 
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		// make sure we clear the framebuffers's content
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		glDisable(GL_DEPTH_TEST);
-		// activate shader
-		ourShader.use();
 
-		// pass projection matrix to shader (note that in this case it could change every frame)
-		glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-		ourShader.setMat4("projection", projection);
+#pragma region marchingcubes
+			// render
+			// ------
+			// bind to framebuffer and draw scene as we normally would to color texture 
 
-		// camera/view transformation
-		glm::mat4 view = camera.GetViewMatrix();
-		ourShader.setMat4("view", view);
-		//only generate new 3dtexture when distance is moved
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		glViewport(0, 0, 96, 96);
-		glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+			glDisable(GL_DEPTH_TEST);
+			// activate shader
+			ourShader.use();
+
+			// pass projection matrix to shader (note that in this case it could change every frame)
+			projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+			ourShader.setMat4("projection", projection);
+
+			// camera/view transformation
+			view = camera.GetViewMatrix();
+			ourShader.setMat4("view", view);
+			//only generate new 3dtexture when distance is moved
+			glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+			glViewport(0, 0, 96, 96);
+			glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+			glClear(GL_COLOR_BUFFER_BIT);
 
 
 
-		// -------------------------------------
-		//		RENDER TO 3D TEXTURE
-		// -------------------------------------
-		screenShader.use();
-		glBindVertexArray(quadVAO);
-		glBindTexture(GL_TEXTURE_3D, texture3D);
+			// -------------------------------------
+			//		RENDER TO 3D TEXTURE
+			// -------------------------------------
+			screenShader.use();
+			glBindVertexArray(quadVAO);
+			glBindTexture(GL_TEXTURE_3D, texture3D);
 
-		// ------------------------------
-		for (int i = 0; i < 256; i++)
+			// ------------------------------
+			for (int i = 0; i < 256; i++)
+			{
+				screenShader.setInt("layer", i + scrollInput);
+				glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture3D, 0, i);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+			}
+			//
+			//-------------------------------------
+			glBindVertexArray(0);
+
+			// now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			glViewport(0, 0, 96, 96);
+
+			//glDisable(GL_DEPTH_TEST); // disable depth test so screen-space quad isn't discarded due to depth test.
+			// clear all relevant buffers
+			glClearColor(0.3f, 0.3f, 0.3f, 1.0f); // set clear color to white (not really necessery actually, since we won't be able to see behind the quad anyways)
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glEnable(GL_DEPTH_TEST);
+
+			glViewport(0, 0, 800, 600);
+
+			// ---------------------------------------
+			//		MARCHING CUBES RENDER
+			// ---------------------------------------
+			//glEnable(GL_RASTERIZER_DISCARD);
+			marchingCubesShader.use();
+			marchingCubesShader.setMat4("view", view);
+			marchingCubesShader.setMat4("projection", projection);
+			model = glm::mat4(1.0f);
+			marchingCubesShader.setMat4("model", model);
+			marchingCubesShader.setInt("yOffset", 0);
+			marchingCubesShader.setVec3("viewPos", camera.Position);
+			marchingCubesShader.setVec3("lightPos", lightPos);
+			glBindVertexArray(dummyVAO);
+			glBindSampler(texture3D, sampler_state);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_3D, texture3D);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, diffuseMap);
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, normalMap);
+			glActiveTexture(GL_TEXTURE3);
+			glBindTexture(GL_TEXTURE_2D, heightMap);
+
+			if(renderPillar)
+				glDrawArraysInstanced(GL_POINTS, 0, (96 * 96), 256);
+
+			//marchingCubesShader.setInt("yOffset", -1);
+			//glDrawArraysInstanced(GL_POINTS, 0, (96 * 96), 256);
+
+			//marchingCubesShader.setInt("yOffset", -2);
+			//glDrawArraysInstanced(GL_POINTS, 0, (96 * 96), 256);
+
+
+			glBindSampler(texture3D, 0);
+
+#pragma endregion marching cubes
+
+		if (renderShadows)
 		{
-			screenShader.setInt("layer", i + scrollInput);
-			glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture3D, 0, i);
-			glDrawArrays(GL_TRIANGLES, 0, 6);
+#pragma region Soft Shadows
+			//glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			// 1. render depth of scene to texture (from light's perspective)
+			// --------------------------------------------------------------
+			glm::mat4 lightProjection, lightView;
+			glm::mat4 lightSpaceMatrix;
+			float near_plane = 1.0f, far_plane = 7.5f;
+			//lightProjection = glm::perspective(glm::radians(45.0f), (GLfloat)SHADOW_WIDTH / (GLfloat)SHADOW_HEIGHT, near_plane, far_plane); // note that if you use a perspective projection matrix you'll have to change the light position as the current light position isn't enough to reflect the whole scene
+			lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+			lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+			lightSpaceMatrix = lightProjection * lightView;
+			// render scene from light's point of view
+			simpleDepthShader.use();
+			simpleDepthShader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+
+			glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+			glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+			glClear(GL_DEPTH_BUFFER_BIT);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, woodTexture);
+			renderScene(simpleDepthShader);
+
+			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			// we do some blurring with gauss
+			bool horizontal = true, first_iteration = true;
+			blurShader.use();
+			for (unsigned int i = 0; i < amount; i++)
+			{
+				glBindFramebuffer(GL_FRAMEBUFFER, pingpongFBO[horizontal]);
+				blurShader.setInt("horizontal", horizontal);
+				glBindTexture(GL_TEXTURE_2D, first_iteration ? colorTexture : pingpongTextures[!horizontal]);
+				renderQuad();
+				horizontal = !horizontal;
+				if (first_iteration)
+					first_iteration = false;
+			}
+
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			// reset viewport
+			//glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+			//// 2. render scene as normal using the generated depth/shadow map  
+			//// --------------------------------------------------------------
+			//glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+			//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			shader.use();
+			projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+			view = camera.GetViewMatrix();
+			shader.setMat4("projection", projection);
+			shader.setMat4("view", view);
+			// set light uniforms
+			shader.setVec3("viewPos", camera.Position);
+			shader.setVec3("lightPos", lightPos);
+			shader.setMat4("lightSpaceMatrix", lightSpaceMatrix);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, woodTexture);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, pingpongTextures[horizontal]);
+			renderScene(shader);
+#pragma endregion Soft Shadows
 		}
-		//
-		//-------------------------------------
-		glBindVertexArray(0);
 
-		// now bind back to default framebuffer and draw a quad plane with the attached framebuffer color texture
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-		glViewport(0, 0, 96, 96);
-
-		//glDisable(GL_DEPTH_TEST); // disable depth test so screen-space quad isn't discarded due to depth test.
-		// clear all relevant buffers
-		glClearColor(0.3f, 0.3f, 0.3f, 1.0f); // set clear color to white (not really necessery actually, since we won't be able to see behind the quad anyways)
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glEnable(GL_DEPTH_TEST);
-
-		glViewport(0, 0, 800, 600);
-
-		// ---------------------------------------
-		//		MARCHING CUBES RENDER
-		// ---------------------------------------
-		//glEnable(GL_RASTERIZER_DISCARD);
-		marchingCubesShader.use();
-		marchingCubesShader.setMat4("view", view);
-		marchingCubesShader.setMat4("projection", projection);
-		glm::mat4 model = glm::mat4(1.0f);
-		marchingCubesShader.setMat4("model", model);
-		marchingCubesShader.setInt("yOffset", 0);
-		marchingCubesShader.setVec3("viewPos", camera.Position);
-		marchingCubesShader.setVec3("lightPos", lightPos);
-		glBindVertexArray(dummyVAO);
-		glBindSampler(texture3D, sampler_state);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_3D, texture3D);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, diffuseMap);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, normalMap);
-		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, heightMap);
-
-		//glDrawArraysInstanced(GL_POINTS, 0, (96 * 96), 256);
-		
-		//marchingCubesShader.setInt("yOffset", -1);
-		//glDrawArraysInstanced(GL_POINTS, 0, (96 * 96), 256);
-
-		//marchingCubesShader.setInt("yOffset", -2);
-		//glDrawArraysInstanced(GL_POINTS, 0, (96 * 96), 256);
-
-		
-		glBindSampler(texture3D, 0);
-
-
+		if (renderTesselation)
+		{
 #pragma region Tesselation
-		// well i dont know
-		tessShader.use();
-		tessShader.setVec4("tessFactor", glm::vec4(tessFactor, 0, 0, 0));
-		tessShader.setMat4("projection", projection);
-		tessShader.setMat4("view", view);
-		// set light uniforms
-		tessShader.setVec3("viewPos", camera.Position);
-		tessShader.setVec3("lightPos", lightPos);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, tesselationDiffuse);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, tesselationHeightMap);
-		model = glm::mat4(1.0f);
-		tessShader.setMat4("model", model);
-		glBindVertexArray(planeVAO);
-		if (wireframe)
-		{
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-			glDrawArrays(GL_PATCHES, 0, 6);
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		}
-		else
-		{
-			glDrawArrays(GL_PATCHES, 0, 6);
-		}
+			// well i dont know
+			tessShader.use();
+			tessShader.setVec4("tessFactor", glm::vec4(tessFactor, 0, 0, 0));
+			tessShader.setMat4("projection", projection);
+			tessShader.setMat4("view", view);
+			// set light uniforms
+			tessShader.setVec3("viewPos", camera.Position);
+			tessShader.setVec3("lightPos", lightPos);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, tesselationDiffuse);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, tesselationHeightMap);
+			model = glm::mat4(1.0f);
+			tessShader.setMat4("model", model);
+			glBindVertexArray(planeVAO);
+			if (wireframe)
+			{
+				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+				glDrawArrays(GL_PATCHES, 0, 6);
+				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			}
+			else
+			{
+				glDrawArrays(GL_PATCHES, 0, 6);
+			}
 #pragma endregion Tesselation
+		}
 
 		std::string printString = std::string("Gauss Iterationen: ").append(std::to_string(amount));
 
+		if (renderPikachu)
+		{
 #pragma region Particles
+			glEnable(GL_BLEND);
+			glDepthMask(GL_FALSE);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			renderParticles(computeShader, particleShader, view, model, projection, particleSprite2, camera.Position);
+			//textRenderer.RenderText(textShader, printString, 25.0f, 550.0f, 0.5f, glm::vec3(1.0f, 0.71f, 0.76f));
+			//textRenderer.RenderText(textShader, std::to_string(printFrame), 25.0f, 575.0f, 0.5f, glm::vec3(1.0f, 0.71f, 0.76f));
+			glDepthMask(GL_TRUE);
+			glDisable(GL_BLEND);
+#pragma endregion Particles
+		}
+
 		glEnable(GL_BLEND);
 		glDepthMask(GL_FALSE);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		renderParticles(computeShader, particleShader, view, model, projection, particleSprite2, camera.Position);
-		textRenderer.RenderText(textShader, std::to_string(printFrame), 20.0f, 675.0f, 0.5f, glm::vec3(1.0f, 0.71f, 0.76f));
-		textRenderer.RenderText(textShader, printString, 20.0f, 650.0f, 0.5f, glm::vec3(1.0f, 0.71f, 0.76f));
+		if (renderShadows)
+			textRenderer.RenderText(textShader, printString, 25.0f, 550.0f, 0.5f, glm::vec3(1.0f, 0.71f, 0.76f));
+
+		textRenderer.RenderText(textShader, std::to_string(printFrame), 25.0f, 575.0f, 0.5f, glm::vec3(1.0f, 0.71f, 0.76f));
+		textRenderer.RenderText(textShader, "Marching Cubes: 3 Shadows: 4 Particles: 5 Tesselation: 6", 25.0f, 525.0f, 0.2f, glm::vec3(1.0f, 0.71f, 0.76f));
 		glDepthMask(GL_TRUE);
 		glDisable(GL_BLEND);
-#pragma endregion Particles
 
 		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
 		// -------------------------------------------------------------------------------
@@ -790,6 +888,22 @@ void processInput(GLFWwindow *window)
 		if(tessFactor > 1)
 			tessFactor -= 1;
 	}
+	if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
+		renderPillar = true;
+	if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS)
+		renderShadows = true;
+	if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS)
+		renderPikachu = true;
+	if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS)
+		renderTesselation = true;
+	if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS)
+		renderPillar = false;
+	if (glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS)
+		renderShadows = false;
+	if (glfwGetKey(window, GLFW_KEY_9) == GLFW_PRESS)
+		renderPikachu = false;
+	if (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS)
+		renderTesselation = false;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
