@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+    <html>
+    <head>
+        <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+        <title>Shader-Programmierung</title>
+        
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+        
+        <style>
+.task-list-item { list-style-type: none; } .task-list-item-checkbox { margin-left: -20px; vertical-align: middle; }
+</style>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        
+        
+    </head>
+    <body>
+        <h1 id="Shader-Programmierung">Shader-Programmierung</h1>
+<h2 id="Implementierung">Implementierung</h2>
+<h3 id="Marching-Cubes">Marching Cubes</h3>
+<p>Mit dem Marching-Cubes-Algorithmus ist es möglich dynamisch Geometrie zu erzeugen. In diesem Fall geschieht das mittels einer 3D-Textur die lediglich einen Farbkanal besitzt. Diese eine Farbe gibt den Dichtewert an. Die Dichtwerte müssen jedoch zunächst generiert werden, hierzu wird ein separater Framebuffer angelegt der die Werte
+&quot;scheibchenweise&quot; in die 3D-Textur rendert. Die generierten Dichtewerte werden dann verwendet um den eigentlichen Algorithmus anzuwenden der basierend auf 8 Voxel
+(dreidimensionale Texel) den entsprechenden Case feststellt und so die Vertices zurückgibt, aus denen Dreiecke generiert werden können. Ist der Vorgang abgeschlossen
+erhält man im Optimalfall eine geschlossene Geometrie.</p>
+<h3 id="Displacement-Mapping">Displacement Mapping</h3>
+<h3 id="Soft-Shadows">Soft Shadows</h3>
+<p>Die Schatten in diesem Programm werden mittels Variance Shadow Mapping (VSM) erstellt. Zunächst wird Shadow Mapping angewendet, die daraus resultierende Shadow Map wird allerdings mit Gaussian Blurring überarbeitet, sodass die Kantenübergänge weicher werden, was auch weichere Schatten zur Folge hat. Weiterhin wird dann die Wahrscheinlichkeit, dass ein bestimmter Punkt beleuchtet wird miteingerechnet, was die Übergänge von Licht und Schatten wesentlich sanfter erscheinen lässt, das die Wahrscheinlichkeit für Lichteinfall nach außen hin des Schattens der Shadowmap abfällt.</p>
+<h3 id="Partikel">Partikel</h3>
+<p>Das Partikelsystem wird in diesem Programm mithilfe eines Compute Shaders erstellt. So ist es möglich das Partikelsystem vollständig auf der GPU zu berechnen. Es werden alle notwendigen Attribute (Lebenszeit, Farbe, Größe etc.) auf die Grafikkarte geladen, die von nun an auf diese Buffer zugreift. Besonderes Augenmerk liegt hierbei auf dem Compute Shader der für jedes Partikel die entsprechenden Berechnungen druchführt und die neuen Werte für die Partikel zurück in den Buffer schreibt. Das ist effizienter als ein Transform Feedback Buffer, der seine Daten wieder zurück auf die CPU schreibt.</p>
+<h3 id="Tesselation">Tesselation</h3>
+<h2 id="Tastenbelegung">Tastenbelegung</h2>
+<p>WASD: Kamera bewegen
+QE: Marching-Cubes-Säule hoch und runter bewegen</p>
+<p>Z: Wireframe-Modus für die Tesselation-Plane aktivieren</p>
+<p>U: Wireframe-Modus ausschalten</p>
+<p>1: Tesselierung erhöhen</p>
+<p>2: Tesselierung verringern</p>
+<p>3: Säule rendern</p>
+<p>4: Shadows rendern</p>
+<p>5: Partikel rendern</p>
+<p>6: Tesselation-Plane rendern</p>
+
+    </body>
+    </html>
