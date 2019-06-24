@@ -840,7 +840,8 @@ int main()
 			textRenderer.RenderText(textShader, printString, 25.0f, 550.0f, 0.5f, glm::vec3(1.0f, 0.71f, 0.76f));
 
 		textRenderer.RenderText(textShader, std::to_string(printFrame), 25.0f, 575.0f, 0.5f, glm::vec3(1.0f, 0.71f, 0.76f));
-		textRenderer.RenderText(textShader, "Marching Cubes: 3 Shadows: 4 Particles: 5 Tesselation: 6", 25.0f, 525.0f, 0.2f, glm::vec3(1.0f, 0.71f, 0.76f));
+		textRenderer.RenderText(textShader, "Switch On - Marching Cubes: 3 Shadows: 4 Particles: 5 Tesselation: 6", 25.0f, 525.0f, 0.3f, glm::vec3(1.0f, 0.71f, 0.76f));
+		textRenderer.RenderText(textShader, "Switch Off - Marching Cubes: 7 Shadows: 8 Particles: 9 Tesselation: 0", 25.0f, 500.0f, 0.3f, glm::vec3(1.0f, 0.71f, 0.76f));
 		glDepthMask(GL_TRUE);
 		glDisable(GL_BLEND);
 
