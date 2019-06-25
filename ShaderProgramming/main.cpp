@@ -437,12 +437,12 @@ int main()
 	//glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, 0, 0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
 
-	int diffuseMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/bricks2.jpg");
-	int normalMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/bricks2_normal.jpg");
-	int heightMap = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/bricks2_disp.jpg");
+	int diffuseMap = loadTexture("bricks2.jpg");
+	int normalMap = loadTexture("bricks2_normal.jpg");
+	int heightMap = loadTexture("bricks2_disp.jpg");
 
-	int particleSprite = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/particle.png");
-	int particleSprite2 = loadTexture("C:/Users/basti/source/repos/SpgWaterfalls/ShaderProgramming/surprised.png");
+	int particleSprite = loadTexture("particle.png");
+	int particleSprite2 = loadTexture("surprised.png");
 	// -------------------------
 
 	int tesselationHeightMap = loadTexture("water_height.png");

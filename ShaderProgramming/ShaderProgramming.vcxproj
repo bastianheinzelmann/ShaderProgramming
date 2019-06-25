@@ -140,13 +140,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="glad.c" />
-    <ClCompile Include="Quelle.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Quelle2.cpp" />
-    <ClCompile Include="Quelle3.cpp" />
     <ClCompile Include="stb_addFile.cpp" />
     <ClCompile Include="TextRenderer.cpp" />
-    <ClCompile Include="ToDo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
